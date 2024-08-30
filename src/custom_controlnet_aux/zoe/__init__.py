@@ -7,6 +7,8 @@ from einops import rearrange
 from PIL import Image
 
 from custom_controlnet_aux.util import HWC3, common_input_validate, resize_image_with_pad, custom_hf_download, HF_MODEL_NAME, DEPTH_ANYTHING_MODEL_NAME
+
+from comfy_extras.nodes_cache import load_model_cached
 from .zoedepth.models.zoedepth.zoedepth_v1 import ZoeDepth
 from .zoedepth.models.zoedepth_anything.zoedepth_v1 import ZoeDepth as ZoeDepthAnything
 from .zoedepth.utils.config import get_config
@@ -20,11 +22,15 @@ class ZoeDetector:
     @classmethod
     def from_pretrained(cls, pretrained_model_or_path=HF_MODEL_NAME, filename="ZoeD_M12_N.pt"):
         model_path = custom_hf_download(pretrained_model_or_path, filename)
-            
-        conf = get_config("zoedepth", "infer")
-        model = ZoeDepth.build_from_config(conf)
-        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'))['model'])
-        model.eval()
+
+        def load_model():
+            conf = get_config("zoedepth", "infer")
+            model = ZoeDepth.build_from_config(conf)
+            model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'))['model'])
+            model.eval()
+            return model
+
+        model = load_model_cached(model_path, load_model)
 
         return cls(model)
 
